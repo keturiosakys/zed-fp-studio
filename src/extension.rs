@@ -1,24 +1,14 @@
-use fpx_lib::api::models::Span as SpanPayload;
-use serde::{Deserialize, Serialize};
+use fpx_lib::api::models::ts_compat::{
+    TypeScriptCompatSpan as Span, TypeScriptCompatTrace as Trace,
+};
 use zed_extension_api::{
-    self as zed, http_client, SlashCommand, SlashCommandArgumentCompletion, SlashCommandOutput,
-    SlashCommandOutputSection, Worktree,
+    self as zed, http_client, serde_json, SlashCommand, SlashCommandArgumentCompletion,
+    SlashCommandOutput, SlashCommandOutputSection, Worktree,
 };
 
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Trace {
-    trace_id: String,
-    spans: Vec<Span>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-struct Span {
-    span_id: String,
-    trace_id: String,
-    parsed_payload: SpanPayload,
-}
+const HTTP_REQUEST_METHOD: &str = "http.request.method";
+const FPX_HTTP_REQUEST_PATHNAME: &str = "fpx.http.request.pathname";
+const HTTP_RESPONSE_STATUS_CODE: &str = "http.response.status_code";
 
 fn get_traces() -> Result<Vec<Trace>, String> {
     let url = format!("http://localhost:8788/v1/traces");
@@ -31,7 +21,7 @@ fn get_traces() -> Result<Vec<Trace>, String> {
         redirect_policy: http_client::RedirectPolicy::NoFollow,
     };
 
-    let response = http_client::fetch(&request)?;
+    let response = http_client::fetch(&request).map_err(|e| format!("Failed to fetch: {}", e))?;
 
     serde_json::from_slice(&response.body).map_err(|e| format!("Failed to parse JSON: {}", e))
 }
@@ -47,7 +37,7 @@ fn get_spans(trace_id: &str) -> Result<Vec<Span>, String> {
         redirect_policy: http_client::RedirectPolicy::NoFollow,
     };
 
-    let response = http_client::fetch(&request)?;
+    let response = http_client::fetch(&request).map_err(|e| format!("Failed to fetch: {}", e))?;
 
     serde_json::from_slice(&response.body).map_err(|e| format!("Failed to parse JSON: {}", e))
 }
@@ -76,7 +66,7 @@ impl zed::Extension for SlashCommandsExampleExtension {
                             .parsed_payload
                             .attributes
                             .0
-                            .get("http.request.method")
+                            .get(HTTP_REQUEST_METHOD)
                             .and_then(|v| v.as_ref())
                             .and_then(|v| v.as_str())
                             .unwrap_or("UNKNOWN");
@@ -84,7 +74,7 @@ impl zed::Extension for SlashCommandsExampleExtension {
                             .parsed_payload
                             .attributes
                             .0
-                            .get("fpx.http.request.pathname")
+                            .get(FPX_HTTP_REQUEST_PATHNAME)
                             .and_then(|v| v.as_ref())
                             .and_then(|v| v.as_str())
                             .unwrap_or("/");
@@ -92,7 +82,7 @@ impl zed::Extension for SlashCommandsExampleExtension {
                             .parsed_payload
                             .attributes
                             .0
-                            .get("http.response.status_code")
+                            .get(HTTP_RESPONSE_STATUS_CODE)
                             .and_then(|v| v.as_ref())
                             .and_then(|v| v.as_str())
                             .unwrap_or("???");

@@ -10,8 +10,11 @@ const HTTP_REQUEST_METHOD: &str = "http.request.method";
 const FPX_HTTP_REQUEST_PATHNAME: &str = "fpx.http.request.pathname";
 const HTTP_RESPONSE_STATUS_CODE: &str = "http.response.status_code";
 
+// Currently not configurable from the editor
+const BASE_URL: &str = "http://localhost:8788";
+
 fn get_traces() -> Result<Vec<Trace>, String> {
-    let url = format!("http://localhost:8788/v1/traces");
+    let url = format!("{}/v1/traces", BASE_URL);
 
     let request = http_client::HttpRequest {
         method: http_client::HttpMethod::Get,
@@ -27,7 +30,7 @@ fn get_traces() -> Result<Vec<Trace>, String> {
 }
 
 fn get_spans(trace_id: &str) -> Result<Vec<Span>, String> {
-    let url = format!("http://localhost:8788/v1/traces/{}/spans", trace_id);
+    let url = format!("{}/v1/traces/{}/spans", BASE_URL, trace_id);
 
     let request = http_client::HttpRequest {
         method: http_client::HttpMethod::Get,

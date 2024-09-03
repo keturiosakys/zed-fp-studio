@@ -119,8 +119,12 @@ impl zed::Extension for FiberplaneStudioExtension {
                                 .0
                                 .get(HTTP_RESPONSE_STATUS_CODE)
                                 .and_then(|v| v.as_ref())
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("???");
+                                .and_then(|v| match v {
+                                    serde_json::Value::Number(n) => n.to_string().into(),
+                                    serde_json::Value::String(s) => Some(s.clone()),
+                                    _ => None,
+                                })
+                                .unwrap_or("???".to_string());
 
                             let label = format!("{}: {} {} ({})", name, method, path, status_code);
 

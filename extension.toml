@@ -1,4 +1,4 @@
-id = "fiberplane-studio-zed"
+id = "fiberplane-studio"
 name = "Fiberplane Studio"
 description = "A way to interface with traces captured by the Fiberplane Studio"
 version = "0.1.0"

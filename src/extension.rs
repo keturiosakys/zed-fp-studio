@@ -118,6 +118,7 @@ impl zed::Extension for SlashCommandsExampleExtension {
                 let formatted_json = serde_json::to_string_pretty(&trace)
                     .map_err(|e| format!("Failed to format JSON: {}", e))?;
                 let spans_text = format!("```json\n{}\n```", formatted_json);
+
                 Ok(SlashCommandOutput {
                     sections: vec![SlashCommandOutputSection {
                         range: (0..spans_text.len()).into(),

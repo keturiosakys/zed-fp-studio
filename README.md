@@ -1,6 +1,6 @@
 # Fiberplane Studio extension for Zed
 
-Real runtime information for your LLM assistant queries.
+Runtime information for your LLM assistant queries.
 
 This extension adds the ability to query local traces from a running [Fiberplane Studio](https://github.com/fiberplane/fpx) instance and add them to your Zed Assistant context.
 
@@ -8,7 +8,7 @@ Traces provide a structured and comprehensive view of the request cycle inside y
 
 ## Installation
 
-Fiberplane Studio extension for Zed is available as a Zed extension. To install it, open `zed: extensions` and search for `Fiberplane Studio`..
+Fiberplane Studio extension for Zed is available as a Zed extension. To install it, open `zed: extensions` and search for `Fiberplane Studio`.
 
 ## Usage
 
@@ -17,3 +17,7 @@ To use the extension, you need to have a running instance of Fiberplane Studio. 
 Once you have a running instance of Fiberplane Studio, that has registered some traces, you can use the extension to query those traces in your Zed Assistant queries.
 
 To query a trace simply type `/trace` in you Zed Assistant and then select the trace you want to query. The extension will then fetch and expand the trace in a readable `json` format.
+
+## Limitations
+
+The extension currently only supports the Fiberlane Studio running locally on `localhost:8788`, as there is currently no way to configure it from the Zed editor.

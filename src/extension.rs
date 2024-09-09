@@ -1,6 +1,4 @@
-use fpx_lib::api::models::ts_compat::{
-    TypeScriptCompatSpan as Span, TypeScriptCompatTrace as Trace,
-};
+use fpx_lib::api::models::{AttributeValue, Span, TraceSummary};
 use zed_extension_api::{
     self as zed, http_client, serde_json, Result, SlashCommand, SlashCommandArgumentCompletion,
     SlashCommandOutput, SlashCommandOutputSection, Worktree,
@@ -16,7 +14,7 @@ const HTTP_NEON_CONNECTION_STRING: &str = "http.request.header.neon-connection-s
 // Currently not configurable from the editor
 const BASE_URL: &str = "http://localhost:8788";
 
-fn get_traces() -> Result<Vec<Trace>> {
+fn get_traces() -> Result<Vec<TraceSummary>> {
     let url = format!("{}/v1/traces", BASE_URL);
 
     let request = http_client::HttpRequest {
@@ -49,20 +47,12 @@ fn get_spans(trace_id: &str) -> Result<Vec<Span>> {
 }
 
 fn strip_env_variables(mut span: Span) -> Span {
-    span.parsed_payload
-        .attributes
-        .0
-        .remove(FPX_HTTP_REQUEST_ENV);
-    if let Some(auth) = span.parsed_payload.attributes.0.get_mut(HTTP_AUTHORIZATION) {
-        *auth = Some(serde_json::Value::String("*****".to_string()));
+    span.attributes.0.remove(FPX_HTTP_REQUEST_ENV);
+    if let Some(auth) = span.attributes.0.get_mut(HTTP_AUTHORIZATION) {
+        *auth = Some(AttributeValue::StringValue("*****".to_string()));
     }
-    if let Some(neon_conn_string) = span
-        .parsed_payload
-        .attributes
-        .0
-        .get_mut(HTTP_NEON_CONNECTION_STRING)
-    {
-        *neon_conn_string = Some(serde_json::Value::String("*****".to_string()));
+    if let Some(neon_conn_string) = span.attributes.0.get_mut(HTTP_NEON_CONNECTION_STRING) {
+        *neon_conn_string = Some(AttributeValue::StringValue("*****".to_string()));
     }
     span
 }
@@ -96,32 +86,27 @@ impl zed::Extension for FiberplaneStudioExtension {
                     .flat_map(|trace| {
                         trace.spans.iter().map(|span| {
                             let stripped_span = strip_env_variables(span.clone());
-                            let name = &stripped_span.parsed_payload.name;
-                            let method = stripped_span
-                                .parsed_payload
-                                .attributes
-                                .0
-                                .get(HTTP_REQUEST_METHOD)
-                                .and_then(|v| v.as_ref())
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("UNKNOWN");
-                            let path = stripped_span
-                                .parsed_payload
-                                .attributes
-                                .0
-                                .get(FPX_HTTP_REQUEST_PATHNAME)
-                                .and_then(|v| v.as_ref())
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("/");
+                            let name = &stripped_span.name;
+
+                            let method = match stripped_span.attributes.0.get(HTTP_REQUEST_METHOD) {
+                                Some(Some(AttributeValue::StringValue(s))) => s.to_owned(),
+                                _ => "UNKNOWN".to_owned(),
+                            };
+
+                            let path =
+                                match stripped_span.attributes.0.get(FPX_HTTP_REQUEST_PATHNAME) {
+                                    Some(Some(AttributeValue::StringValue(s))) => s,
+                                    _ => "/",
+                                };
                             let status_code = stripped_span
-                                .parsed_payload
                                 .attributes
                                 .0
                                 .get(HTTP_RESPONSE_STATUS_CODE)
                                 .and_then(|v| v.as_ref())
                                 .and_then(|v| match v {
-                                    serde_json::Value::Number(n) => n.to_string().into(),
-                                    serde_json::Value::String(s) => Some(s.clone()),
+                                    AttributeValue::DoubleValue(n) => n.to_string().into(),
+                                    AttributeValue::IntValue(n) => n.to_string().into(),
+                                    AttributeValue::StringValue(s) => Some(s.clone()),
                                     _ => None,
                                 })
                                 .unwrap_or("???".to_string());
@@ -152,7 +137,7 @@ impl zed::Extension for FiberplaneStudioExtension {
                 let trace_id = args.first().ok_or("no trace id provided")?;
 
                 let spans = get_spans(trace_id)?;
-                let trace = Trace {
+                let trace = TraceSummary {
                     trace_id: trace_id.to_string(),
                     spans: spans.into_iter().map(strip_env_variables).collect(),
                 };

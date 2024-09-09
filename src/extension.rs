@@ -1,4 +1,7 @@
-use fpx_lib::api::models::{AttributeValue, Span, TraceSummary};
+use fpx_lib::{
+    api::models::{AttributeValue, Span, TraceSummary},
+    data::models::HexEncodedId,
+};
 use zed_extension_api::{
     self as zed, http_client, serde_json, Result, SlashCommand, SlashCommandArgumentCompletion,
     SlashCommandOutput, SlashCommandOutputSection, Worktree,
@@ -84,9 +87,14 @@ impl zed::Extension for FiberplaneStudioExtension {
                 return Ok(traces
                     .iter()
                     .flat_map(|trace| {
-                        trace.spans.iter().map(|span| {
+                        trace.spans.iter().filter_map(|span| {
                             let stripped_span = strip_env_variables(span.clone());
                             let name = &stripped_span.name;
+
+                            // Only show top-level requests
+                            if name != "request" {
+                                return None;
+                            }
 
                             let method = match stripped_span.attributes.0.get(HTTP_REQUEST_METHOD) {
                                 Some(Some(AttributeValue::StringValue(s))) => s.to_owned(),
@@ -111,13 +119,13 @@ impl zed::Extension for FiberplaneStudioExtension {
                                 })
                                 .unwrap_or("???".to_string());
 
-                            let label = format!("{}: {} {} ({})", name, method, path, status_code);
+                            let label = format!("{} {} {}", status_code, method, path);
 
-                            SlashCommandArgumentCompletion {
-                                new_text: trace.trace_id.clone(),
+                            Some(SlashCommandArgumentCompletion {
+                                new_text: trace.trace_id.to_string(),
                                 label,
                                 run_command: true,
-                            }
+                            })
                         })
                     })
                     .collect::<Vec<_>>());
@@ -138,7 +146,7 @@ impl zed::Extension for FiberplaneStudioExtension {
 
                 let spans = get_spans(trace_id)?;
                 let trace = TraceSummary {
-                    trace_id: trace_id.to_string(),
+                    trace_id: HexEncodedId::new(trace_id).expect("trace id is invalid"),
                     spans: spans.into_iter().map(strip_env_variables).collect(),
                 };
                 let formatted_json = serde_json::to_string_pretty(&trace)
